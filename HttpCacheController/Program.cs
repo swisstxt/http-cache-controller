@@ -2,10 +2,6 @@
 using k8s;
 using k8s.Models;
 
-var ANNOTATION_ENABLED_VALUE = "true";
-var ANNOTATION_ENABLED = "swisstxt.ch/http-cache-enabled";
-var ANNOTATION_TARGET = "swisstxt.ch/http-cache-target";
-var ANNOTATION_AUTOGEN = "swisstxt.ch/http-cache-autogen";
 
 var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig");
 
@@ -24,11 +20,11 @@ void HandleTargetServiceEvent(WatchEventType type, V1Service item)
 }
 
 void HandleServiceEvent(WatchEventType type, V1Service item) {
-    if (item.HasAnnotation(ANNOTATION_ENABLED, ANNOTATION_ENABLED_VALUE))
+    if (item.HasAnnotation(ControllerConstants.ANNOTATION_ENABLED, ControllerConstants.ANNOTATION_ENABLED_VALUE))
     {
         HandleSourceServiceEvent(type, item);
     }
-    else if (item.HasAnnotation(ANNOTATION_AUTOGEN))
+    else if (item.HasAnnotation(ControllerConstants.ANNOTATION_AUTOGEN))
     {
         HandleTargetServiceEvent(type, item);
     }
