@@ -1,25 +1,36 @@
-﻿using k8s;
+﻿using HttpCacheController;
+using k8s;
 using k8s.Models;
 
+var ANNOTATION_ENABLED_VALUE = "true";
 var ANNOTATION_ENABLED = "swisstxt.ch/http-cache-enabled";
 var ANNOTATION_TARGET = "swisstxt.ch/http-cache-target";
 var ANNOTATION_AUTOGEN = "swisstxt.ch/http-cache-autogen";
 
 var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig");
 
-void handleServiceEvent(WatchEventType type, V1Service item) {
-    var annotations = item.Metadata.Annotations;
-    if (annotations.ContainsKey(ANNOTATION_ENABLED) && annotations[ANNOTATION_ENABLED] == "true")
+void HandleSourceServiceEvent(WatchEventType type, V1Service item)
+{
+    // TODO: check if target service exists
+    // create target service if not
+    // update target service if needed
+}
+
+void HandleTargetServiceEvent(WatchEventType type, V1Service item)
+{
+    // TODO: check if source service exists
+    // delete target service if not
+    // update target service if needed (maybe?)
+}
+
+void HandleServiceEvent(WatchEventType type, V1Service item) {
+    if (item.HasAnnotation(ANNOTATION_ENABLED, ANNOTATION_ENABLED_VALUE))
     {
-        Console.WriteLine($"{item.Metadata.Name} matches [{type}]");
+        HandleSourceServiceEvent(type, item);
     }
-    else if (annotations.ContainsKey(ANNOTATION_AUTOGEN))
+    else if (item.HasAnnotation(ANNOTATION_AUTOGEN))
     {
-        Console.WriteLine($"{item.Metadata.Name} matches  autogen [{type}]");
-    }
-    else
-    {
-        Console.WriteLine($"{item.Metadata.Name} does not match");
+        HandleTargetServiceEvent(type, item);
     }
 }
 
@@ -35,7 +46,7 @@ while (true)
         {
             foreach (V1Service item in initialServices)
             {
-                handleServiceEvent(WatchEventType.Added, item);
+                HandleServiceEvent(WatchEventType.Added, item);
             }
         }
         
@@ -43,7 +54,7 @@ while (true)
 
         await foreach (var (type, item) in services.WatchAsync<V1Service, V1ServiceList>())
         {
-            handleServiceEvent(type, item);
+            HandleServiceEvent(type, item);
         }
     }
     catch (IOException e)
