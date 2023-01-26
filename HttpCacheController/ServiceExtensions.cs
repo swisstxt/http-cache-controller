@@ -4,7 +4,14 @@ namespace HttpCacheController;
 
 public static class ServiceExtensions
 {
-    public static V1Service SourceServiceToTargetService(V1Service source, string targetName)
+    public static bool Equals(this V1Service source, V1Service otherService)
+    {
+        return source.Metadata.Name == otherService.Metadata.Name &&
+               source.Spec.Ports.SequenceEqual(otherService.Spec.Ports) &&
+               source.Spec.Selector.SequenceEqual(otherService.Spec.Selector);
+    }
+    
+    public static V1Service ToTargetService(this V1Service source, string targetName)
     {
         var target = new V1Service
         {
