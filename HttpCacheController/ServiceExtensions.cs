@@ -4,11 +4,27 @@ namespace HttpCacheController;
 
 public static class ServiceExtensions
 {
-    public static bool Equals(this V1Service source, V1Service otherService)
+    public static bool IsAcceptable(this V1Service x, V1Service y)
     {
-        return source.Metadata.Name == otherService.Metadata.Name &&
-               source.Spec.Ports.SequenceEqual(otherService.Spec.Ports) &&
-               source.Spec.Selector.SequenceEqual(otherService.Spec.Selector);
+        
+        for (var i = 0; i < x.Spec.Ports.Count; i++)
+        {
+            if (x.Spec.Ports[i].Name != y.Spec.Ports[i].Name ||
+                x.Spec.Ports[i].Port != y.Spec.Ports[i].Port)
+            {
+                return false;
+            }
+        }
+        
+        foreach (var (key, value) in x.Spec.Selector)
+        {
+            if (!y.Spec.Selector.ContainsKey(key) || y.Spec.Selector[key] != value)
+            {
+                return false;
+            }
+        }
+
+        return x.Metadata.Name == y.Metadata.Name;
     }
     
     public static V1Service ToTargetService(this V1Service source, string targetName)
@@ -31,6 +47,12 @@ public static class ServiceExtensions
         };
 
         return target;
+    }
+    
+    
+    public static string GetNameWithSuffix(this V1Service svc)
+    {
+        return svc.Metadata.Name + ControllerConstants.SERVICE_NAME_SUFFIX;
     }
     
     public static bool HasAnnotation(this V1Service svc, string expectedAnnotation, string? expectedValue = null)
