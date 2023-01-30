@@ -1,7 +1,32 @@
-﻿using HttpCacheController;
+﻿
+using HttpCacheController;
+using HttpCacheController.Nginx;
 using k8s;
 using k8s.Models;
 
+List<ConfigurationDirective> rootDirectives = new List<ConfigurationDirective>()
+{
+    new ConfigurationDirective("daemon", new ConfigurationValue("off")),
+    new ConfigurationDirective("worker_processes", new ConfigurationValue("1")),
+    new ConfigurationDirective("pid", new ConfigurationValue("/tmp/nginx.pid")),
+};
+
+List<ConfigurationDirective> serverDirectives = new List<ConfigurationDirective>()
+{
+    new ConfigurationDirective("listen", 
+new ConfigurationValue("80"),
+            new ConfigurationValue("proxy_protocol"),
+            new ConfigurationValue("default_server"), new ConfigurationValue("reuseport")
+    ),
+};
+
+var nginxConfig = new ConfigurationBlock(BlockType.Root, rootDirectives.ToArray(),
+    new ConfigurationBlock(BlockType.Http, null, 
+    new ConfigurationBlock(BlockType.Server, serverDirectives.ToArray(), 
+    new ConfigurationBlock(BlockType.Location, "/", null)
+)));
+
+Console.WriteLine(nginxConfig);
 
 var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig");
 
@@ -55,6 +80,10 @@ void HandleServiceEvent(WatchEventType type, V1Service item) {
             {
                 Console.WriteLine($"updating target service {item.GetNameWithSuffix()}");
                 client.CoreV1.ReplaceNamespacedService(item.ToTargetService(item.GetNameWithSuffix()), item.GetNameWithSuffix(), config.Namespace);
+            }
+            else
+            {
+                Console.WriteLine($"target service {targetService.Metadata.Name} is up to date");
             }
         }
     }
