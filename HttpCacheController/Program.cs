@@ -4,57 +4,56 @@ using HttpCacheController.Nginx;
 using k8s;
 using k8s.Models;
 
-List<ConfigurationDirective> rootDirectives = new List<ConfigurationDirective>()
-{
-    new ConfigurationDirective("daemon", new ConfigurationValue("off")),
-    new ConfigurationDirective("worker_processes", new ConfigurationValue("1")),
-    new ConfigurationDirective("pid", new ConfigurationValue("/tmp/nginx.pid")),
-};
 
-List<ConfigurationDirective> serverDirectives = new List<ConfigurationDirective>()
-{
-    new ConfigurationDirective("listen", 
-new ConfigurationValue("80"),
-            new ConfigurationValue("proxy_protocol"),
-            new ConfigurationValue("default_server"), new ConfigurationValue("reuseport")
-    ),
-};
 
-var nginxConfig = new ConfigurationBlock(BlockType.Root, rootDirectives.ToArray(),
-    new ConfigurationBlock(BlockType.Http, null, 
-    new ConfigurationBlock(BlockType.Server, serverDirectives.ToArray(), 
-    new ConfigurationBlock(BlockType.Location, "/", null)
-)));
-
-Console.WriteLine(nginxConfig);
 
 var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig");
 
-void HandleSourceServiceEvent(WatchEventType type, V1Service item)
-{
-    // TODO: check if target service exists
-    // create target service if not
-    // update target service if needed
-}
 
-void HandleTargetServiceEvent(WatchEventType type, V1Service item)
+V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
 {
-    // TODO: check if source service exists
-    // delete target service if not
-    // update target service if needed (maybe?)
-}
+    var newCm = new V1ConfigMap()
+    {
+        Metadata = new V1ObjectMeta()
+        {
+            Name = ControllerConstants.CONFIG_MAP_NAME
+        },
+        Data = new Dictionary<string, string>()
+        {
+            { ControllerConstants.NGINX_CONFIG_KEY, nginxConfig.ToString() }
+        }
+    };
 
-void HandleServiceEvent(WatchEventType type, V1Service item) {
-    if (item.HasAnnotation(ControllerConstants.ANNOTATION_ENABLED, ControllerConstants.ANNOTATION_ENABLED_VALUE))
-    {
-        HandleSourceServiceEvent(type, item);
-    }
-    else if (item.HasAnnotation(ControllerConstants.ANNOTATION_AUTOGEN))
-    {
-        HandleTargetServiceEvent(type, item);
-    }
-    
-}
+    return newCm;
+
+
+} 
+
+// void HandleSourceServiceEvent(WatchEventType type, V1Service item)
+// {
+//     // TODO: check if target service exists
+//     // create target service if not
+//     // update target service if needed
+// }
+//
+// void HandleTargetServiceEvent(WatchEventType type, V1Service item)
+// {
+//     // TODO: check if source service exists
+//     // delete target service if not
+//     // update target service if needed (maybe?)
+// }
+//
+// void HandleServiceEvent(WatchEventType type, V1Service item) {
+//     if (item.HasAnnotation(ControllerConstants.ANNOTATION_ENABLED, ControllerConstants.ANNOTATION_ENABLED_VALUE))
+//     {
+//         HandleSourceServiceEvent(type, item);
+//     }
+//     else if (item.HasAnnotation(ControllerConstants.ANNOTATION_AUTOGEN))
+//     {
+//         HandleTargetServiceEvent(type, item);
+//     }
+//     
+// }
 
 // while (true)
 // {
@@ -66,6 +65,26 @@ void HandleServiceEvent(WatchEventType type, V1Service item) {
         
         var sourceServices = services.FindAll(s => s.HasAnnotation(ControllerConstants.ANNOTATION_ENABLED, ControllerConstants.ANNOTATION_ENABLED_VALUE));
         var targetServices = services.FindAll(s => s.HasAnnotation(ControllerConstants.ANNOTATION_AUTOGEN));
+        
+        List<ConfigurationDirective> rootDirectives = new List<ConfigurationDirective>()
+        {
+            new ConfigurationDirective("daemon", new ConfigurationValue("off")),
+            new ConfigurationDirective("worker_processes", new ConfigurationValue("1")),
+            new ConfigurationDirective("pid", new ConfigurationValue("/tmp/nginx.pid")),
+        };
+
+        List<ConfigurationDirective> serverDirectives = new List<ConfigurationDirective>()
+        {
+            new ConfigurationDirective("listen", 
+                new ConfigurationValue("80"),
+                new ConfigurationValue("proxy_protocol"),
+                new ConfigurationValue("default_server"), new ConfigurationValue("reuseport")
+            ),
+        };
+
+        List<ConfigurationBlock> blocks = new List<ConfigurationBlock>();
+
+        
 
         foreach (V1Service item in sourceServices)
         {
@@ -85,7 +104,43 @@ void HandleServiceEvent(WatchEventType type, V1Service item) {
             {
                 Console.WriteLine($"target service {targetService.Metadata.Name} is up to date");
             }
+            
+            blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>() {}.ToArray(), null));
         }
+        
+        var nginxConfig = new ConfigurationBlock(BlockType.Root, rootDirectives.ToArray(),
+            new ConfigurationBlock(BlockType.Http, null, 
+                blocks.ToArray())
+                );
+
+        V1ConfigMap? configMap = null;
+        try
+        {
+            configMap = (await client.CoreV1.ReadNamespacedConfigMapWithHttpMessagesAsync(
+                ControllerConstants.CONFIG_MAP_NAME,
+                config.Namespace)).Body;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("not found");
+            client.CoreV1.CreateNamespacedConfigMap(CreateConfigMap(nginxConfig), config.Namespace);
+        }
+
+        if (configMap == null)
+        {
+            // TODO: create CM
+        }
+        else if (!configMap.IsEqual(nginxConfig))
+        {
+            // TODO: update CM
+            client.CoreV1.ReplaceNamespacedConfigMap(CreateConfigMap(nginxConfig), ControllerConstants.CONFIG_MAP_NAME, config.Namespace);
+        }
+        else
+        {
+            Console.WriteLine("enjoy the moment, config map up to date");            
+        }
+        
+        Console.WriteLine(nginxConfig);
     }
     catch (IOException e)
     {
