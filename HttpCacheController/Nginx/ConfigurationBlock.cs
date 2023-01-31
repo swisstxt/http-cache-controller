@@ -23,10 +23,12 @@ public class ConfigurationBlock
     {
         return type switch
         {
+            BlockType.Root => "",
             BlockType.Http => "http",
             BlockType.Server => "server",
             BlockType.Upstream => "upstream",
-            BlockType.Location => "location"
+            BlockType.Location => "location",
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
         };
     }
     
@@ -71,7 +73,7 @@ public class ConfigurationBlock
         {
             foreach (var directive in Directives)
             {
-                sb.Append(directive.ToString(indent+1));
+                sb.Append(directive.ToString(Type == BlockType.Root ? indent : indent+1));
             }
         }
 
@@ -79,7 +81,7 @@ public class ConfigurationBlock
         {
             foreach (var block in Blocks)
             {
-                sb.Append(block.ToString(indent+1));
+                sb.Append(block.ToString(Type == BlockType.Root ? indent : indent+1));
             }
         }
 
