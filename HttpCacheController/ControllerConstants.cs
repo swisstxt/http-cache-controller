@@ -10,4 +10,5 @@ public static class ControllerConstants
     public static string CONFIG_MAP_NAME = "http-cache-config";
     public static string SERVICE_NAME_SUFFIX = "-cached";
     public static string NGINX_CONFIG_KEY = "nginx.conf";
+    public static int NGINX_CONFIG_INDENT_SPACES = 4;
 }

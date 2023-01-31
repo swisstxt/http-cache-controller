@@ -34,13 +34,28 @@ public class ConfigurationBlock
     public string? Args { get; set; }
     public List<ConfigurationBlock>? Blocks { get; set; }
     public List<ConfigurationDirective>? Directives { get; set; }
-    
+
+
     public override string ToString()
+    {
+        return ToString(0);
+    }
+    
+    private static void AppendIndent(StringBuilder sb, int indent)
+    {
+        for (var i = 0; i < (indent * ControllerConstants.NGINX_CONFIG_INDENT_SPACES); i++)
+        {
+            sb.Append(" ");
+        }
+    }
+    
+    public string ToString(int indent)
     {
         var sb = new StringBuilder();
 
         if (Type != BlockType.Root)
         {
+            AppendIndent(sb, indent);
             sb.Append(TypetoNginxString(Type));
             if (Args != null)
             {
@@ -56,7 +71,7 @@ public class ConfigurationBlock
         {
             foreach (var directive in Directives)
             {
-                sb.Append(directive);
+                sb.Append(directive.ToString(indent+1));
             }
         }
 
@@ -64,12 +79,13 @@ public class ConfigurationBlock
         {
             foreach (var block in Blocks)
             {
-                sb.Append(block);
+                sb.Append(block.ToString(indent+1));
             }
         }
 
         if (Type != BlockType.Root)
         {
+            AppendIndent(sb, indent);
             sb.Append("}\n");
         }
 

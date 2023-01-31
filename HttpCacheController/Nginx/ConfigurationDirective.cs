@@ -18,15 +18,24 @@ public class ConfigurationDirective
     
     public string Name { get; set; }
     public List<ConfigurationValue> Values { get; }
-    
-    
-    public override string ToString()
+
+
+    public string ToString(int indent)
     {
         var sb = new StringBuilder();
+        for (var i = 0; i < (indent * ControllerConstants.NGINX_CONFIG_INDENT_SPACES); i++)
+        {
+            sb.Append(" ");
+        }
         sb.Append(Name);
         sb.Append(" ");
         sb.Append(string.Join(" ", Values));
         sb.Append(";\n");
         return sb.ToString();
+    }
+    
+    public override string ToString()
+    {
+        return ToString(0);
     }
 }
