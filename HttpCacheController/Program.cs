@@ -2,6 +2,7 @@
 using HttpCacheController;
 using HttpCacheController.Nginx;
 using k8s;
+using k8s.Autorest;
 using k8s.Models;
 
 
@@ -98,7 +99,21 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
             else if (!targetService.IsAcceptable(item.ToTargetService(item.GetNameWithSuffix())))
             {
                 Console.WriteLine($"updating target service {item.GetNameWithSuffix()}");
-                client.CoreV1.ReplaceNamespacedService(item.ToTargetService(item.GetNameWithSuffix()), item.GetNameWithSuffix(), config.Namespace);
+
+
+                try
+                {
+                    client.CoreV1.ReplaceNamespacedService(item.ToTargetService(item.GetNameWithSuffix()),
+                        item.GetNameWithSuffix(), config.Namespace);
+                }
+
+                catch (HttpOperationException e)
+                {
+                    Console.WriteLine(e.Message);
+                    Console.WriteLine("failed to replace target service - deleting and recreating");
+                    client.CoreV1.DeleteNamespacedService(item.GetNameWithSuffix(), config.Namespace, gracePeriodSeconds: 0, propagationPolicy: "Foreground");
+                    client.CoreV1.CreateNamespacedService(item.ToTargetService(item.GetNameWithSuffix()), config.Namespace);
+                }
             }
             else
             {
@@ -114,7 +129,7 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
 
             var location = new ConfigurationBlock(BlockType.Location, "/", new ConfigurationDirective[]
             {
-                new ConfigurationDirective("proxy_pass", new ConfigurationValue($"http://source{item.Metadata.Name}"))
+                new ConfigurationDirective("proxy_pass", new ConfigurationValue($"http://source-{item.Metadata.Name}"))
             }, null);
             
             blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>()

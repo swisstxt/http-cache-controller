@@ -42,7 +42,13 @@ public static class ServiceExtensions
             Spec = new V1ServiceSpec
             {
                 Ports = source.Spec.Ports,
-                Selector = source.Spec.Selector // TODO: different selector required -> target nginx cache instance
+                Selector = new Dictionary<string, string>()
+                {
+                    {
+                        ControllerConstants.NGINX_SELECTOR_KEY,
+                        ControllerConstants.NGINX_SELECTOR_VALUE
+                    }
+                }
             }
         };
 
