@@ -105,13 +105,27 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
                 Console.WriteLine($"target service {targetService.Metadata.Name} is up to date");
             }
             
-            blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>() {}.ToArray(), null));
+            var upstream = new ConfigurationBlock(BlockType.Upstream, $"source-{item.Metadata.Name}", new List<ConfigurationDirective>()
+            {
+                new ConfigurationDirective("server", new ConfigurationValue($"{item.Metadata.Name}:{item.Spec.Ports.First().Port}"))
+            }.ToArray(), null);
+            
+            blocks.Add(upstream);
+
+            var location = new ConfigurationBlock(BlockType.Location, "/", new ConfigurationDirective[]
+            {
+                new ConfigurationDirective("proxy_pass", new ConfigurationValue($"http://source{item.Metadata.Name}"))
+            }, null);
+            
+            blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>()
+            {
+                new ConfigurationDirective("server_name", new ConfigurationValue(item.Metadata.Name)),
+                new ConfigurationDirective("listen", new ConfigurationValue("8080"))
+            }.ToArray(), location));
         }
         
         var nginxConfig = new ConfigurationBlock(BlockType.Root, rootDirectives.ToArray(),
-            new ConfigurationBlock(BlockType.Http, null, 
-                blocks.ToArray())
-                );
+            new ConfigurationBlock(BlockType.Http, null, blocks.ToArray()));
 
         V1ConfigMap? configMap = null;
         try
@@ -122,7 +136,7 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
         }
         catch (Exception e)
         {
-            Console.WriteLine("not found");
+            Console.WriteLine("not found - creating config map");
             client.CoreV1.CreateNamespacedConfigMap(CreateConfigMap(nginxConfig), config.Namespace);
         }
 
@@ -133,11 +147,12 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
         else if (!configMap.IsEqual(nginxConfig))
         {
             // TODO: update CM
+            Console.WriteLine("updating config map");
             client.CoreV1.ReplaceNamespacedConfigMap(CreateConfigMap(nginxConfig), ControllerConstants.CONFIG_MAP_NAME, config.Namespace);
         }
         else
         {
-            Console.WriteLine("enjoy the moment, config map up to date");            
+            Console.WriteLine("enjoy the moment, config map up to date");
         }
         
         Console.WriteLine(nginxConfig);

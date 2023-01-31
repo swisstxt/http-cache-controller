@@ -25,6 +25,7 @@ public class ConfigurationBlock
         {
             BlockType.Http => "http",
             BlockType.Server => "server",
+            BlockType.Upstream => "upstream",
             BlockType.Location => "location"
         };
     }
