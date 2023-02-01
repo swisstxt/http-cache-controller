@@ -8,8 +8,7 @@ using k8s.Models;
 
 
 
-var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig");
-
+var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig.local");
 
 V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
 {
@@ -30,31 +29,6 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
 
 } 
 
-// void HandleSourceServiceEvent(WatchEventType type, V1Service item)
-// {
-//     // TODO: check if target service exists
-//     // create target service if not
-//     // update target service if needed
-// }
-//
-// void HandleTargetServiceEvent(WatchEventType type, V1Service item)
-// {
-//     // TODO: check if source service exists
-//     // delete target service if not
-//     // update target service if needed (maybe?)
-// }
-//
-// void HandleServiceEvent(WatchEventType type, V1Service item) {
-//     if (item.HasAnnotation(ControllerConstants.ANNOTATION_ENABLED, ControllerConstants.ANNOTATION_ENABLED_VALUE))
-//     {
-//         HandleSourceServiceEvent(type, item);
-//     }
-//     else if (item.HasAnnotation(ControllerConstants.ANNOTATION_AUTOGEN))
-//     {
-//         HandleTargetServiceEvent(type, item);
-//     }
-//     
-// }
 
 // while (true)
 // {
@@ -69,23 +43,28 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
         
         List<ConfigurationDirective> rootDirectives = new List<ConfigurationDirective>()
         {
-            new ConfigurationDirective("daemon", new ConfigurationValue("off")),
-            new ConfigurationDirective("worker_processes", new ConfigurationValue("1")),
-            new ConfigurationDirective("pid", new ConfigurationValue("/tmp/nginx.pid")),
-        };
-
-        List<ConfigurationDirective> serverDirectives = new List<ConfigurationDirective>()
-        {
-            new ConfigurationDirective("listen", 
-                new ConfigurationValue("80"),
-                new ConfigurationValue("proxy_protocol"),
-                new ConfigurationValue("default_server"), new ConfigurationValue("reuseport")
-            ),
+            // new ConfigurationDirective("daemon", new ConfigurationValue("off")),
+            // new ConfigurationDirective("worker_processes", new ConfigurationValue("1")),
+            // new ConfigurationDirective("pid", new ConfigurationValue("/tmp/nginx.pid")),
         };
 
         List<ConfigurationBlock> blocks = new List<ConfigurationBlock>();
-
         
+        // adding a catch all server block
+        blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>()
+        {
+            new ConfigurationDirective("listen", 
+                new ConfigurationValue("8080"),
+                new ConfigurationValue("default_server")
+            ),
+            new ConfigurationDirective("server_name", 
+                new ConfigurationValue("_")
+            ),
+            new ConfigurationDirective("return", 
+                new ConfigurationValue("444")
+            )
+        }.ToArray(), null));
+       
 
         foreach (V1Service item in sourceServices)
         {
@@ -134,13 +113,13 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
             
             blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>()
             {
-                new ConfigurationDirective("server_name", new ConfigurationValue(item.Metadata.Name)),
+                new ConfigurationDirective("server_name", new ConfigurationValue(item.GetNameWithSuffix())),
                 new ConfigurationDirective("listen", new ConfigurationValue("8080"))
             }.ToArray(), location));
         }
         
         var nginxConfig = new ConfigurationBlock(BlockType.Root, rootDirectives.ToArray(),
-            new ConfigurationBlock(BlockType.Http, null, blocks.ToArray()));
+            new ConfigurationBlock(BlockType.Root, null, blocks.ToArray()));
 
         V1ConfigMap? configMap = null;
         try

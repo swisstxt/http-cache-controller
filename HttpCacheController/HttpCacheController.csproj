@@ -22,6 +22,9 @@
       <None Update=".kubeconfig">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update=".kubeconfig.local">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>
