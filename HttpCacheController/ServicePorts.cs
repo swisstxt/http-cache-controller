@@ -5,13 +5,12 @@ namespace HttpCacheController;
 
 public static class ServicePorts
 {
-    private static int currentPort = 9000;
-
     private static Dictionary<string, List<V1ServicePort>> servicePorts = new() {};
 
     public static void Init(IEnumerable<V1Service> sourceServices)
     {
         servicePorts.Clear();
+        var currentPort = 9000;
         
         foreach (var service in sourceServices.OrderBy(s => s.Metadata.Name))
         {
