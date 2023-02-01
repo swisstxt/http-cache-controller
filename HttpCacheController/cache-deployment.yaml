@@ -49,12 +49,16 @@ spec:
         - mountPath: /opt/bitnami/openresty/nginx/conf/server_blocks/default.conf
           name: http-cache-config
           subPath: nginx.conf
+        - mountPath: /cache/static
+          name: static-cache
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
       securityContext: {}
       terminationGracePeriodSeconds: 30
       volumes:
+      - name: static-cache
+        emptyDir: {}
       - configMap:
           defaultMode: 420
           name: http-cache-config

@@ -5,10 +5,17 @@ using k8s;
 using k8s.Autorest;
 using k8s.Models;
 
+KubernetesClientConfiguration? config = null;
 
+if (KubernetesClientConfiguration.IsInCluster())
+{
+    config = KubernetesClientConfiguration.InClusterConfig();
+}
+else
+{
+    config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig.local");
+}
 
-
-var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig.local");
 
 V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
 {
@@ -26,12 +33,10 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
 
     return newCm;
 
-
 } 
 
-
-// while (true)
-// {
+while (true)
+{
     try
     {
         var client = new Kubernetes(config);
@@ -43,9 +48,7 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
         
         List<ConfigurationDirective> rootDirectives = new List<ConfigurationDirective>()
         {
-            // new ConfigurationDirective("daemon", new ConfigurationValue("off")),
-            // new ConfigurationDirective("worker_processes", new ConfigurationValue("1")),
-            // new ConfigurationDirective("pid", new ConfigurationValue("/tmp/nginx.pid")),
+            new ConfigurationDirective("proxy_cache_path", new ConfigurationValue("/cache/static levels=1:2 keys_zone=static-cache:10m max_size=5g inactive=60m use_temp_path=off"))
         };
 
         List<ConfigurationBlock> blocks = new List<ConfigurationBlock>();
@@ -108,7 +111,11 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
 
             var location = new ConfigurationBlock(BlockType.Location, "/", new ConfigurationDirective[]
             {
-                new ConfigurationDirective("proxy_pass", new ConfigurationValue($"http://source-{item.Metadata.Name}"))
+                new ConfigurationDirective("proxy_cache", new ConfigurationValue("static-cache")), 
+                new ConfigurationDirective("proxy_cache_valid", new ConfigurationValue("any 100m")),
+                new ConfigurationDirective("proxy_cache_use_stale", new ConfigurationValue("error timeout updating http_404 http_500 http_502 http_503 http_504")),
+                new ConfigurationDirective("add_header", new ConfigurationValue("X-Cache-Status $upstream_cache_status")),
+                new ConfigurationDirective("proxy_pass", new ConfigurationValue($"http://source-{item.Metadata.Name}")),
             }, null);
             
             blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>()
@@ -148,8 +155,6 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
         {
             Console.WriteLine("enjoy the moment, config map up to date");
         }
-        
-        Console.WriteLine(nginxConfig);
     }
     catch (IOException e)
     {
@@ -159,14 +164,12 @@ V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
     {
         Console.Error.WriteLine($"unhandled exception {e.Message}");
         
-        //break;
+        break;
     }
     finally
     {
         Console.Error.WriteLine($"sleeping");
-        Thread.Sleep(500);
+        Thread.Sleep(10000);
     }
-
-
-// }
+}
 
