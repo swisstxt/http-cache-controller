@@ -44,6 +44,9 @@ while (true)
         var services = client.CoreV1.ListNamespacedService(config.Namespace).Items.ToList();
         
         var sourceServices = services.FindAll(s => s.HasAnnotation(ControllerConstants.ANNOTATION_ENABLED, ControllerConstants.ANNOTATION_ENABLED_VALUE));
+
+        ServicePorts.Init(sourceServices);
+        
         var targetServices = services.FindAll(s => s.HasAnnotation(ControllerConstants.ANNOTATION_AUTOGEN));
         
         List<ConfigurationDirective> rootDirectives = new List<ConfigurationDirective>()
@@ -76,7 +79,7 @@ while (true)
             if (targetService == null)
             {
                 Console.WriteLine($"creating target service {item.GetNameWithSuffix()}");
-                client.CoreV1.CreateNamespacedService(item.ToTargetService(item.GetNameWithSuffix()), config.Namespace);
+                targetService = client.CoreV1.CreateNamespacedService(item.ToTargetService(item.GetNameWithSuffix()), config.Namespace);
             }
             else if (!targetService.IsAcceptable(item.ToTargetService(item.GetNameWithSuffix())))
             {
@@ -85,7 +88,7 @@ while (true)
 
                 try
                 {
-                    client.CoreV1.ReplaceNamespacedService(item.ToTargetService(item.GetNameWithSuffix()),
+                    targetService = client.CoreV1.ReplaceNamespacedService(item.ToTargetService(item.GetNameWithSuffix()),
                         item.GetNameWithSuffix(), config.Namespace);
                 }
 
@@ -94,39 +97,44 @@ while (true)
                     Console.WriteLine(e.Message);
                     Console.WriteLine("failed to replace target service - deleting and recreating");
                     client.CoreV1.DeleteNamespacedService(item.GetNameWithSuffix(), config.Namespace, gracePeriodSeconds: 0, propagationPolicy: "Foreground");
-                    client.CoreV1.CreateNamespacedService(item.ToTargetService(item.GetNameWithSuffix()), config.Namespace);
+                    targetService = client.CoreV1.CreateNamespacedService(item.ToTargetService(item.GetNameWithSuffix()), config.Namespace);
                 }
             }
             else
             {
                 Console.WriteLine($"target service {targetService.Metadata.Name} is up to date");
             }
-            
-            var upstream = new ConfigurationBlock(BlockType.Upstream, $"source-{item.Metadata.Name}", new List<ConfigurationDirective>()
-            {
-                new ConfigurationDirective("server", new ConfigurationValue($"{item.Metadata.Name}:{item.Spec.Ports.First().Port}"))
-            }.ToArray(), null);
-            
-            blocks.Add(upstream);
 
-            var location = new ConfigurationBlock(BlockType.Location, "/", new ConfigurationDirective[]
+            foreach (var port in targetService.Spec.Ports)
             {
-                new ConfigurationDirective("proxy_cache", new ConfigurationValue("static-cache")), 
-                new ConfigurationDirective("proxy_cache_valid", new ConfigurationValue("any 100m")),
-                new ConfigurationDirective("proxy_cache_use_stale", new ConfigurationValue("error timeout updating http_404 http_500 http_502 http_503 http_504")),
-                new ConfigurationDirective("add_header", new ConfigurationValue("X-Cache-Status $upstream_cache_status")),
-                new ConfigurationDirective("proxy_pass", new ConfigurationValue($"http://source-{item.Metadata.Name}")),
-            }, null);
+                var upstream = new ConfigurationBlock(BlockType.Upstream, $"source-{item.Metadata.Name}-{port.Name}", new List<ConfigurationDirective>()
+                {
+                    new ConfigurationDirective("server", new ConfigurationValue($"{item.Metadata.Name}:{item.Spec.Ports.ToList().Find(p => p.Name == port.Name).Port}"))
+                }.ToArray(), null);
             
-            blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>()
-            {
-                new ConfigurationDirective("server_name", new ConfigurationValue(item.GetNameWithSuffix())),
-                new ConfigurationDirective("listen", new ConfigurationValue("8080"))
-            }.ToArray(), location));
+                blocks.Add(upstream);
+
+                var location = new ConfigurationBlock(BlockType.Location, "/", new ConfigurationDirective[]
+                {
+                    new ConfigurationDirective("proxy_cache", new ConfigurationValue("static-cache")), 
+                    new ConfigurationDirective("proxy_cache_valid", new ConfigurationValue("any 100m")),
+                    new ConfigurationDirective("proxy_cache_use_stale", new ConfigurationValue("error timeout updating http_404 http_500 http_502 http_503 http_504")),
+                    new ConfigurationDirective("add_header", new ConfigurationValue("X-Cache-Status $upstream_cache_status")),
+                    new ConfigurationDirective("proxy_pass", new ConfigurationValue($"http://source-{item.Metadata.Name}-{port.Name}")),
+                }, null);
+            
+                blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>()
+                {
+                    // new ConfigurationDirective("server_name", new ConfigurationValue(item.GetNameWithSuffix())),
+                    new ConfigurationDirective("listen", new ConfigurationValue(port.Port.ToString()))
+                }.ToArray(), location));
+            }
         }
         
         var nginxConfig = new ConfigurationBlock(BlockType.Root, rootDirectives.ToArray(),
             new ConfigurationBlock(BlockType.Root, null, blocks.ToArray()));
+        
+        Console.WriteLine(nginxConfig.ToString());
 
         V1ConfigMap? configMap = null;
         try

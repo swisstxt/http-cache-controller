@@ -6,11 +6,10 @@ public static class ServiceExtensions
 {
     public static bool IsAcceptable(this V1Service x, V1Service y)
     {
-        
+
         for (var i = 0; i < x.Spec.Ports.Count; i++)
         {
-            if (x.Spec.Ports[i].Name != y.Spec.Ports[i].Name ||
-                x.Spec.Ports[i].Port != y.Spec.Ports[i].Port)
+            if (x.Spec.Ports[i].Name != y.Spec.Ports[i].Name)
             {
                 return false;
             }
@@ -26,7 +25,7 @@ public static class ServiceExtensions
 
         return x.Metadata.Name == y.Metadata.Name;
     }
-    
+
     public static V1Service ToTargetService(this V1Service source, string targetName)
     {
         var target = new V1Service
@@ -41,7 +40,7 @@ public static class ServiceExtensions
             },
             Spec = new V1ServiceSpec
             {
-                Ports = source.Spec.Ports,
+                Ports = ServicePorts.GetPortsForService(source.Metadata.Name),
                 Selector = new Dictionary<string, string>()
                 {
                     {
