@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   annotations:
     wave.pusher.com/update-on-config-change: "true"
@@ -7,17 +7,12 @@ metadata:
     app: http-cache-controller
   name: http-cache-controller
 spec:
-  progressDeadlineSeconds: 600
   replicas: 1
+  serviceName: http-cache-controller
   revisionHistoryLimit: 10
   selector:
     matchLabels:
       app: http-cache-controller
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
   template:
     metadata:
       labels:
