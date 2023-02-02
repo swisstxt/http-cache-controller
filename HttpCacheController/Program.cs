@@ -53,14 +53,14 @@ while (true)
 
             if (targetService == null)
             {
-                logger.LogInformation($"creating target service {sourceService.GetNameWithSuffix()}");
+                logger.LogInformation("creating target service {sourceService.GetNameWithSuffix()}", sourceService.GetNameWithSuffix());
                 targetService = client.CoreV1.CreateNamespacedService(sourceService.ToTargetService(sourceService.GetNameWithSuffix()),
                     config.Namespace);
             }
             else if (!targetService.IsAcceptable(sourceService.ToTargetService(sourceService.GetNameWithSuffix())))
             {
 
-                logger.LogInformation($"deleting and recreating target service {sourceService.GetNameWithSuffix()}");
+                logger.LogInformation("deleting and recreating target service {sourceService.GetNameWithSuffix()}", sourceService.GetNameWithSuffix());
                 client.CoreV1.DeleteNamespacedService(sourceService.GetNameWithSuffix(), config.Namespace,
                     gracePeriodSeconds: 0, propagationPolicy: "Foreground");
                 targetService =
@@ -69,7 +69,7 @@ while (true)
             }
             else
             {
-                logger.LogInformation($"target service {targetService.Metadata.Name} is up to date");
+                logger.LogInformation("target service {targetService.Metadata.Name} is up to date", targetService.Metadata.Name);
             }
 
             configurationBuilder.AddRoutedService(sourceService, targetService);
@@ -77,7 +77,7 @@ while (true)
         }
         var nginxConfig = configurationBuilder.Build();
         
-        logger.LogTrace(nginxConfig.ToString());
+        logger.LogTrace("{nginxConfig.ToString()}" ,nginxConfig.ToString());
 
         V1ConfigMap? configMap = null;
         
@@ -123,11 +123,11 @@ while (true)
                 }                
             }
             
-            logger.LogInformation($"hash - computed: \"{hash}\" current: \"{currentHash}\"");
+            logger.LogInformation("hash - computed: \"{hash}\" current: \"{currentHash}\"", hash, currentHash);
 
             if (currentHash != hash)
             {
-                logger.LogInformation($"hash mismatch, update hash on deployment {ControllerConstants.CACHE_DEPLOYMENT_NAME}");
+                logger.LogInformation("hash mismatch, update hash on deployment {ControllerConstants.CACHE_DEPLOYMENT_NAME}", ControllerConstants.CACHE_DEPLOYMENT_NAME);
                 var patch = new V1Patch(
                     "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\""
                     + ControllerConstants.CONFIG_HASH_LABEL_KEY + "\": \"" + hash +
@@ -142,12 +142,12 @@ while (true)
     }
     catch (Exception e)
     {
-        logger.LogCritical($"unhandled exception {e.Message}");
+        logger.LogCritical("unhandled exception {e.Message}", e.Message);
         break;
     }
     finally
     {
-        logger.LogDebug($"sleeping for {ControllerConstants.CONTROLLER_SLEEP}ms");
+        logger.LogDebug("sleeping for {ControllerConstants.CONTROLLER_SLEEP}ms", ControllerConstants.CONTROLLER_SLEEP);
         Thread.Sleep(ControllerConstants.CONTROLLER_SLEEP);
     }
 }
