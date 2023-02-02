@@ -49,24 +49,24 @@ while (true)
         
         ServicePorts.Init(sourceServices);
 
-        foreach (V1Service item in sourceServices)
+        foreach (V1Service sourceService in sourceServices)
         {
-            var targetService = targetServices.Find(s => s.Metadata.Name == item.GetNameWithSuffix());
+            var targetService = targetServices.Find(s => s.Metadata.Name == sourceService.GetNameWithSuffix());
 
             if (targetService == null)
             {
-                Console.WriteLine($"creating target service {item.GetNameWithSuffix()}");
-                targetService = client.CoreV1.CreateNamespacedService(item.ToTargetService(item.GetNameWithSuffix()),
+                Console.WriteLine($"creating target service {sourceService.GetNameWithSuffix()}");
+                targetService = client.CoreV1.CreateNamespacedService(sourceService.ToTargetService(sourceService.GetNameWithSuffix()),
                     config.Namespace);
             }
-            else if (!targetService.IsAcceptable(item.ToTargetService(item.GetNameWithSuffix())))
+            else if (!targetService.IsAcceptable(sourceService.ToTargetService(sourceService.GetNameWithSuffix())))
             {
 
-                Console.WriteLine($"deleting and recreating target service {item.GetNameWithSuffix()}");
-                client.CoreV1.DeleteNamespacedService(item.GetNameWithSuffix(), config.Namespace,
+                Console.WriteLine($"deleting and recreating target service {sourceService.GetNameWithSuffix()}");
+                client.CoreV1.DeleteNamespacedService(sourceService.GetNameWithSuffix(), config.Namespace,
                     gracePeriodSeconds: 0, propagationPolicy: "Foreground");
                 targetService =
-                    client.CoreV1.CreateNamespacedService(item.ToTargetService(item.GetNameWithSuffix()),
+                    client.CoreV1.CreateNamespacedService(sourceService.ToTargetService(sourceService.GetNameWithSuffix()),
                         config.Namespace);
             }
             else
@@ -74,7 +74,7 @@ while (true)
                 Console.WriteLine($"target service {targetService.Metadata.Name} is up to date");
             }
 
-            configurationBuilder.AddRoutedService(item, targetService);
+            configurationBuilder.AddRoutedService(sourceService, targetService);
 
         }
         var nginxConfig = configurationBuilder.Build();
