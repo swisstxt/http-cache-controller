@@ -1,7 +1,7 @@
 using HttpCacheController.Nginx;
 using k8s.Models;
 
-namespace HttpCacheController;
+namespace HttpCacheController.Extensions;
 
 public static class ConfigMapExtensions
 {

@@ -1,5 +1,6 @@
 ﻿
 using HttpCacheController;
+using HttpCacheController.Extensions;
 using HttpCacheController.Nginx;
 using k8s;
 using k8s.Autorest;
