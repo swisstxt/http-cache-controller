@@ -6,22 +6,13 @@ public static class ServiceExtensions
 {
     public static bool IsAcceptable(this V1Service x, V1Service y)
     {
-
         for (var i = 0; i < x.Spec.Ports.Count; i++)
-        {
             if (x.Spec.Ports[i].Name != y.Spec.Ports[i].Name)
-            {
                 return false;
-            }
-        }
-        
+
         foreach (var (key, value) in x.Spec.Selector)
-        {
             if (!y.Spec.Selector.ContainsKey(key) || y.Spec.Selector[key] != value)
-            {
                 return false;
-            }
-        }
 
         return x.Metadata.Name == y.Metadata.Name;
     }
@@ -41,7 +32,7 @@ public static class ServiceExtensions
             Spec = new V1ServiceSpec
             {
                 Ports = ServicePorts.GetPortsForService(source.Metadata.Name),
-                Selector = new Dictionary<string, string>()
+                Selector = new Dictionary<string, string>
                 {
                     {
                         ControllerConstants.NGINX_SELECTOR_KEY,
@@ -53,25 +44,22 @@ public static class ServiceExtensions
 
         return target;
     }
-    
-    
+
+
     public static string GetNameWithSuffix(this V1Service svc)
     {
         return svc.Metadata.Name + ControllerConstants.SERVICE_NAME_SUFFIX;
     }
-    
+
     public static bool HasAnnotation(this V1Service svc, string expectedAnnotation, string? expectedValue = null)
     {
         var annotations = svc.Metadata.Annotations;
 
-        if (annotations == null)
-        {
-            return false;
-        }
-        
+        if (annotations == null) return false;
+
         return expectedValue != null
             ? annotations.ContainsKey(expectedAnnotation) &&
               annotations[expectedAnnotation] == expectedValue
-            : annotations.ContainsKey(expectedAnnotation); 
+            : annotations.ContainsKey(expectedAnnotation);
     }
 }

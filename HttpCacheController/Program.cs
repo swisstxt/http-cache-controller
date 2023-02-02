@@ -105,7 +105,7 @@ while (true)
         
         // check config map hash on cache deployment
 
-        var hash = configMap.GetUniqeHashForConfiguration();
+        var hash = configMap.GetUniqueHashForConfiguration();
 
         var cacheDeployment= client.AppsV1.ReadNamespacedDeployment(ControllerConstants.CACHE_DEPLOYMENT_NAME, config.Namespace);
 
