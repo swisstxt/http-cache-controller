@@ -20,7 +20,7 @@ spec:
         group: streaming
     spec:
       containers:
-        - image: asnapper/http-cache-controller:latest
+        - image: swisstxt/http-cache-controller:master
           imagePullPolicy: Always
           name: nginx
           ports:
