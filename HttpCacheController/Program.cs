@@ -3,7 +3,6 @@ using HttpCacheController;
 using HttpCacheController.Extensions;
 using HttpCacheController.Nginx;
 using k8s;
-using k8s.Autorest;
 using k8s.Models;
 
 KubernetesClientConfiguration? config = null;
@@ -16,7 +15,6 @@ else
 {
     config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig.local");
 }
-
 
 V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
 {
@@ -44,12 +42,12 @@ while (true)
         var services = client.CoreV1.ListNamespacedService(config.Namespace).Items.ToList();
         
         var sourceServices = services.FindAll(s => s.HasAnnotation(ControllerConstants.ANNOTATION_ENABLED, ControllerConstants.ANNOTATION_ENABLED_VALUE));
-
-        ServicePorts.Init(sourceServices);
         
         var targetServices = services.FindAll(s => s.HasAnnotation(ControllerConstants.ANNOTATION_AUTOGEN));
 
         var configurationBuilder = ConfigurationBuilder.CreateBuilder();
+        
+        ServicePorts.Init(sourceServices);
 
         foreach (V1Service item in sourceServices)
         {
@@ -63,25 +61,13 @@ while (true)
             }
             else if (!targetService.IsAcceptable(item.ToTargetService(item.GetNameWithSuffix())))
             {
-                Console.WriteLine($"updating target service {item.GetNameWithSuffix()}");
 
-                try
-                {
-                    targetService = client.CoreV1.ReplaceNamespacedService(
-                        item.ToTargetService(item.GetNameWithSuffix()),
-                        item.GetNameWithSuffix(), config.Namespace);
-                }
-
-                catch (HttpOperationException e)
-                {
-                    Console.WriteLine(e.Message);
-                    Console.WriteLine("failed to replace target service - deleting and recreating");
-                    client.CoreV1.DeleteNamespacedService(item.GetNameWithSuffix(), config.Namespace,
-                        gracePeriodSeconds: 0, propagationPolicy: "Foreground");
-                    targetService =
-                        client.CoreV1.CreateNamespacedService(item.ToTargetService(item.GetNameWithSuffix()),
-                            config.Namespace);
-                }
+                Console.WriteLine($"deleting and recreating target service {item.GetNameWithSuffix()}");
+                client.CoreV1.DeleteNamespacedService(item.GetNameWithSuffix(), config.Namespace,
+                    gracePeriodSeconds: 0, propagationPolicy: "Foreground");
+                targetService =
+                    client.CoreV1.CreateNamespacedService(item.ToTargetService(item.GetNameWithSuffix()),
+                        config.Namespace);
             }
             else
             {
@@ -111,7 +97,6 @@ while (true)
 
         if (!configMap.IsEqual(nginxConfig))
         {
-            // TODO: update CM
             Console.WriteLine("updating config map");
             client.CoreV1.ReplaceNamespacedConfigMap(CreateConfigMap(nginxConfig), ControllerConstants.CONFIG_MAP_NAME, config.Namespace);
         }
@@ -120,14 +105,9 @@ while (true)
             Console.WriteLine("enjoy the moment, config map up to date");
         }
     }
-    catch (IOException e)
-    {
-        Console.Error.WriteLine($"watch failed {e.Message}");
-    }
     catch (Exception e)
     {
         Console.Error.WriteLine($"unhandled exception {e.Message}");
-        
         break;
     }
     finally
