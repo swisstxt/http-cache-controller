@@ -4,22 +4,35 @@ namespace HttpCacheController.Nginx;
 
 public class ConfigurationBlock
 {
-    public ConfigurationBlock(BlockType type, string args, ConfigurationDirective[]? directives, params ConfigurationBlock[] blocks)
+    public ConfigurationBlock(BlockType type, string args, IEnumerable<ConfigurationDirective>? directives = null,
+        params ConfigurationBlock[] blocks)
     {
         Type = type;
         Args = args;
-        Directives = directives?.ToList();
-        Blocks = blocks?.ToList();
+        Directives = directives;
+        Blocks = blocks;
     }
-    
-    public ConfigurationBlock(BlockType type, ConfigurationDirective[]? directives, params ConfigurationBlock[] blocks)
+
+    public ConfigurationBlock(BlockType type, IEnumerable<ConfigurationDirective>? directives = null, params ConfigurationBlock[] blocks)
     {
         Type = type;
-        Directives = directives?.ToList();
-        Blocks = blocks?.ToList();
+        Directives = directives;
+        Blocks = blocks;
     }
     
-    private string TypetoNginxString(BlockType type)
+    public ConfigurationBlock(BlockType type, IEnumerable<ConfigurationDirective>? directives = null, IEnumerable<ConfigurationBlock>? blocks = null)
+    {
+        Type = type;
+        Directives = directives;
+        Blocks = blocks;
+    }
+
+    private BlockType Type { get; }
+    private string? Args { get; }
+    private IEnumerable<ConfigurationBlock>? Blocks { get; }
+    private IEnumerable<ConfigurationDirective>? Directives { get; }
+
+    private static string TypeToNginxString(BlockType type)
     {
         return type switch
         {
@@ -31,65 +44,46 @@ public class ConfigurationBlock
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
         };
     }
-    
-    public BlockType Type { get; set; }
-    public string? Args { get; set; }
-    public List<ConfigurationBlock>? Blocks { get; set; }
-    public List<ConfigurationDirective>? Directives { get; set; }
-
 
     public override string ToString()
     {
         return ToString(0);
     }
-    
+
     private static void AppendIndent(StringBuilder sb, int indent)
     {
-        for (var i = 0; i < (indent * ControllerConstants.NGINX_CONFIG_INDENT_SPACES); i++)
-        {
-            sb.Append(" ");
-        }
+        for (var i = 0; i < indent * ControllerConstants.NGINX_CONFIG_INDENT_SPACES; i++) sb.Append(' ');
     }
-    
-    public string ToString(int indent)
+
+    private string ToString(int indent)
     {
         var sb = new StringBuilder();
 
         if (Type != BlockType.Root)
         {
             AppendIndent(sb, indent);
-            sb.Append(TypetoNginxString(Type));
+            sb.Append(TypeToNginxString(Type));
             if (Args != null)
             {
-                sb.Append(" ");
+                sb.Append(' ');
                 sb.Append(Args);
             }
-            
-            sb.Append(" {\n");
 
+            sb.Append(" {\n");
         }
 
         if (Directives != null)
-        {
             foreach (var directive in Directives)
-            {
-                sb.Append(directive.ToString(Type == BlockType.Root ? indent : indent+1));
-            }
-        }
+                sb.Append(directive.ToString(Type == BlockType.Root ? indent : indent + 1));
 
         if (Blocks != null)
-        {
             foreach (var block in Blocks)
-            {
-                sb.Append(block.ToString(Type == BlockType.Root ? indent : indent+1));
-            }
-        }
+                sb.Append(block.ToString(Type == BlockType.Root ? indent : indent + 1));
 
-        if (Type != BlockType.Root)
-        {
-            AppendIndent(sb, indent);
-            sb.Append("}\n");
-        }
+        if (Type == BlockType.Root) return sb.ToString();
+        
+        AppendIndent(sb, indent);
+        sb.Append("}\n");
 
         return sb.ToString();
     }

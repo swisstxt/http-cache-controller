@@ -7,9 +7,9 @@ public class ConfigurationValue
         Value = value;
         Quoted = quoted;
     }
-        
-    public bool Quoted { get; }
-    public string Value { get; }
+
+    private bool Quoted { get; }
+    private string Value { get; }
 
     public override string ToString()
     {
