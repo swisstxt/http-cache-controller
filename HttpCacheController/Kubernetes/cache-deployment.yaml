@@ -1,18 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    wave.pusher.com/update-on-config-change: "true"
   labels:
-    app: http-cache-controller-cache
-  name: http-cache-controller-cache
+    app: http-cache
+  name: http-cache
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: http-cache-controller-cache
+      app: http-cache
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -21,7 +19,7 @@ spec:
   template:
     metadata:
       labels:
-        app: http-cache-controller-cache
+        app: http-cache
         group: streaming
     spec:
       containers:

@@ -7,11 +7,13 @@ public static class ControllerConstants
     public static string ANNOTATION_ENABLED = "swisstxt.ch/http-cache-enabled";
     public static string ANNOTATION_TARGET = "swisstxt.ch/http-cache-target";
     public static string ANNOTATION_AUTOGEN = "swisstxt.ch/http-cache-autogen";
+    public static string CONFIG_HASH_LABEL_KEY = "swisstxt.ch/http-cache-config-hash";
     public static string CONFIG_MAP_NAME = "http-cache-config";
-    public static string NGINX_SELECTOR_KEY = "app";
     public static string NGINX_SELECTOR_VALUE = "http-cache";
+    public static string NGINX_SELECTOR_KEY = "app";
     public static string SERVICE_NAME_SUFFIX = "-cached";
     public static string NGINX_CONFIG_KEY = "nginx.conf";
+    public static string CACHE_DEPLOYMENT_NAME = "http-cache";
     public static int NGINX_CONFIG_INDENT_SPACES = 4;
     public static int CONTROLLER_SLEEP = 10000;
 }

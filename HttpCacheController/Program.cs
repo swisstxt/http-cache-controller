@@ -102,6 +102,43 @@ while (true)
         {
             logger.LogInformation("enjoy the moment, config map up to date");
         }
+        
+        // check config map hash on cache deployment
+
+        var hash = configMap.GetUniqeHashForConfiguration();
+
+        var cacheDeployment= client.AppsV1.ReadNamespacedDeployment(ControllerConstants.CACHE_DEPLOYMENT_NAME, config.Namespace);
+
+        if (cacheDeployment != null)
+        {
+            var currentHash = "";
+            
+            if (cacheDeployment.Spec.Template.Metadata.Annotations != null)
+            {
+                var labels = cacheDeployment.Spec.Template.Metadata.Annotations;
+
+                if (labels.ContainsKey(ControllerConstants.CONFIG_HASH_LABEL_KEY))
+                {
+                    currentHash = labels[ControllerConstants.CONFIG_HASH_LABEL_KEY];
+                }                
+            }
+            
+            logger.LogInformation($"hash - computed: \"{hash}\" current: \"{currentHash}\"");
+
+            if (currentHash != hash)
+            {
+                logger.LogInformation($"hash mismatch, update hash on deployment {ControllerConstants.CACHE_DEPLOYMENT_NAME}");
+                var patch = new V1Patch(
+                    "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\""
+                    + ControllerConstants.CONFIG_HASH_LABEL_KEY + "\": \"" + hash +
+                    "\"}}}}}", V1Patch.PatchType.MergePatch);
+                client.AppsV1.PatchNamespacedDeployment(patch, ControllerConstants.CACHE_DEPLOYMENT_NAME, config.Namespace);
+            }
+        }
+        else
+        {
+            logger.LogWarning("no cache deployment found!");
+        }
     }
     catch (Exception e)
     {
