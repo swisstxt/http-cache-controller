@@ -13,24 +13,8 @@ if (KubernetesClientConfiguration.IsInCluster())
 }
 else
 {
+    // for local development, load static configuration from file
     config = KubernetesClientConfiguration.BuildConfigFromConfigFile(".kubeconfig.local");
-}
-
-V1ConfigMap CreateConfigMap(ConfigurationBlock nginxConfig)
-{
-    var newCm = new V1ConfigMap()
-    {
-        Metadata = new V1ObjectMeta()
-        {
-            Name = ControllerConstants.CONFIG_MAP_NAME
-        },
-        Data = new Dictionary<string, string>()
-        {
-            { ControllerConstants.NGINX_CONFIG_KEY, nginxConfig.ToString() }
-        }
-    };
-
-    return newCm;
 }
 
 while (true)
@@ -92,13 +76,13 @@ while (true)
         catch (Exception e)
         {
             Console.WriteLine("not found - creating config map");
-            configMap = client.CoreV1.CreateNamespacedConfigMap(CreateConfigMap(nginxConfig), config.Namespace);
+            configMap = client.CoreV1.CreateNamespacedConfigMap(Utils.CreateConfigMap(nginxConfig), config.Namespace);
         }
 
         if (!configMap.IsEqual(nginxConfig))
         {
             Console.WriteLine("updating config map");
-            client.CoreV1.ReplaceNamespacedConfigMap(CreateConfigMap(nginxConfig), ControllerConstants.CONFIG_MAP_NAME, config.Namespace);
+            client.CoreV1.ReplaceNamespacedConfigMap(Utils.CreateConfigMap(nginxConfig), ControllerConstants.CONFIG_MAP_NAME, config.Namespace);
         }
         else
         {
