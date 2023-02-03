@@ -5,3 +5,4 @@ riderModule.iml
 /_ReSharper.Caches/
 HttpCacheController/.kubeconfig.local
 HttpCacheController.sln.DotSettings.user
+.idea
