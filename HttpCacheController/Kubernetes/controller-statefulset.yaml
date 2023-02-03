@@ -20,7 +20,7 @@ spec:
       containers:
         - image: swisstxt/http-cache-controller:master
           imagePullPolicy: Always
-          name: nginx
+          name: controller
           ports:
             - containerPort: 8080
               protocol: TCP
