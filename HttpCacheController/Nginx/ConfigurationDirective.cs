@@ -29,7 +29,7 @@ public class ConfigurationDirective
     }
 
     private string Name { get; }
-    private List<ConfigurationValue> Values { get; }
+    private IEnumerable<ConfigurationValue> Values { get; }
 
 
     public string ToString(int indent)

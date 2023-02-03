@@ -37,31 +37,40 @@ public class ConfigurationBuilder
     {
         foreach (var port in targetService.Spec.Ports)
         {
-            var upstream = new ConfigurationBlock(BlockType.Upstream, $"source-{item.Metadata.Name}-{port.Name}",
-                new List<ConfigurationDirective>
+
+            var sourcePort = item.Spec.Ports.ToList().Find(p => p.Name == port.Name);
+
+            if (sourcePort != null)
+            {
+                var upstream = new ConfigurationBlock(BlockType.Upstream, $"source-{item.Metadata.Name}-{port.Name}",
+                    new List<ConfigurationDirective>
+                    {
+                        new("server",
+                            $"{item.Metadata.Name}:{sourcePort.Port}")
+                    });
+
+                _blocks.Add(upstream);
+
+                var location = new ConfigurationBlock(BlockType.Location, "/", new ConfigurationDirective[]
                 {
-                    new("server",
-                        $"{item.Metadata.Name}:{item.Spec.Ports.ToList().Find(p => p.Name == port.Name).Port}")
+                    new("proxy_cache", "static-cache"),
+                    new("proxy_cache_valid", "any", "100m"),
+                    new("proxy_cache_use_stale", "error", "timeout", "updating", "http_404", "http_500", "http_502",
+                        "http_503", "http_504"),
+                    new("add_header", "X-Cache-Status", "$upstream_cache_status"),
+                    new("proxy_pass", $"http://source-{item.Metadata.Name}-{port.Name}")
                 });
 
-            _blocks.Add(upstream);
-
-            var location = new ConfigurationBlock(BlockType.Location, "/", new ConfigurationDirective[]
+                _blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>
+                {
+                    new("listen", port.Port.ToString())
+                }, location));
+            }
+            else
             {
-                new("proxy_cache", "static-cache"),
-                new("proxy_cache_valid", "any", "100m"),
-                new("proxy_cache_use_stale", "error", "timeout", "updating", "http_404", "http_500", "http_502",
-                    "http_503", "http_504"),
-                new("add_header", "X-Cache-Status", "$upstream_cache_status"),
-                new("proxy_pass", $"http://source-{item.Metadata.Name}-{port.Name}")
-            });
-
-            _blocks.Add(new ConfigurationBlock(BlockType.Server, new List<ConfigurationDirective>
-            {
-                new("listen", port.Port.ToString())
-            }, location));
+                throw new Exception($"Could not find port {port.Name}");
+            }
         }
-
         return this;
     }
 
